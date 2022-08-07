@@ -1198,11 +1198,13 @@ public class ClientCnxn {
                         if (closing) {
                             break;
                         }
+                        // rwServerAddress 是一个特殊的配置，不用管它
                         if (rwServerAddress != null) {
                             serverAddress = rwServerAddress;
                             rwServerAddress = null;
                         } else {
                             // 获取要连接的server的址
+                            // 将所有instance轮询一遍后，等1000ms，再继续轮询
                             serverAddress = hostProvider.next(1000);
                         }
                         onConnecting(serverAddress);
@@ -1212,8 +1214,10 @@ public class ClientCnxn {
                         clientCnxnSocket.updateLastSendAndHeard();
                     }
 
+                    // 客户端会话超时管理
                     if (state.isConnected()) {
                         // determine whether we need to send an AuthFailed event.
+                        // 不用管 zooKeeperSaslClient !=null 的情况
                         if (zooKeeperSaslClient != null) {
                             boolean sendAuthEvent = false;
                             if (zooKeeperSaslClient.getSaslState() == ZooKeeperSaslClient.SaslState.INITIAL) {

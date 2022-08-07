@@ -110,7 +110,7 @@ public class SessionTrackerImpl extends ZooKeeperCriticalThread implements Sessi
     public SessionTrackerImpl(SessionExpirer expirer, ConcurrentMap<Long, Integer> sessionsWithTimeout, int tickTime, long serverId, ZooKeeperServerListener listener) {
         super("SessionTracker", listener);
         this.expirer = expirer;
-        // 创建并初始化会话过期队列
+        // 创建并初始化【会话过期队列】
         this.sessionExpiryQueue = new ExpiryQueue<SessionImpl>(tickTime);
         this.sessionsWithTimeout = sessionsWithTimeout;
         this.nextSessionId.set(initializeNextSessionId(serverId));
@@ -165,6 +165,7 @@ public class SessionTrackerImpl extends ZooKeeperCriticalThread implements Sessi
         try {
             // 只要当前SessionTrancker没有关闭，该while()永远不会停止，
             // 其就没有break
+            // 这个running是 sessionTracker的状态
             while (running) {
                 // 获取等待时间，即当前时间距离清理时间点的差值
                 long waitTime = sessionExpiryQueue.getWaitTime();

@@ -261,6 +261,7 @@ public class ClientCnxnSocketNIO extends ClientCnxnSocket {
         sockKey = sock.register(selector, SelectionKey.OP_CONNECT);
         // 连接指定地址
         boolean immediateConnect = sock.connect(addr);
+        // 连接成功，做一些初始化工作
         if (immediateConnect) {
             sendThread.primeConnection();
         }

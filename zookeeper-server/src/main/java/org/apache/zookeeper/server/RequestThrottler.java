@@ -136,6 +136,9 @@ public class RequestThrottler extends ZooKeeperCriticalThread {
         dropStaleRequests = drop;
     }
 
+    /**
+     * while(true) 一直从提交的请求队列中取请求，交给zooKeeperServer进行处理
+     */
     @Override
     public void run() {
         try {
@@ -144,7 +147,7 @@ public class RequestThrottler extends ZooKeeperCriticalThread {
                     break;
                 }
 
-                // 从队列中获取一个请求
+                // 从提交的请求队列中获取一个请求
                 Request request = submittedRequests.take();
                 if (Request.requestOfDeath == request) {
                     break;
@@ -244,6 +247,7 @@ public class RequestThrottler extends ZooKeeperCriticalThread {
     public void submitRequest(Request request) {
         if (stopping) {
             LOG.debug("Shutdown in progress. Request cannot be processed");
+            // 请求流控停了，就删除（停了，就表明流控不允许请求再进来了）
             dropRequest(request);
         } else {
             request.requestThrottleQueueTime = Time.currentElapsedTime();

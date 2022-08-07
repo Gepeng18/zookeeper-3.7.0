@@ -1014,7 +1014,7 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
     }
 
     public void reopenSession(ServerCnxn cnxn, long sessionId, byte[] passwd, int sessionTimeout) throws IOException {
-        // 若当前连接密码正确，则验证会话，否则关闭会话
+        // 若当前连接密码正确，则验证会话，密码不正确则直接关闭会话
         if (checkPasswd(sessionId, passwd)) {
             // 验证会话
             revalidateSession(cnxn, sessionId, sessionTimeout);
@@ -1043,6 +1043,7 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
         }
 
         try {
+            // 定义一个连接响应
             ConnectResponse rsp = new ConnectResponse(
                 0,
                 valid ? cnxn.getSessionTimeout() : 0,
@@ -1067,7 +1068,7 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
                     Long.toHexString(cnxn.getSessionId()),
                     cnxn.getSessionTimeout(),
                     cnxn.getRemoteSocketAddress());
-                // 启用接收到的连接，client会发生会话转移事件
+                // 启用接收到的连接，这时候client会发生【会话转移】事件
                 cnxn.enableRecv();
             } else {  // 处理会话无效的情况
 
@@ -1075,7 +1076,7 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
                     "Invalid session 0x{} for client {}, probably expired",
                     Long.toHexString(cnxn.getSessionId()),
                     cnxn.getRemoteSocketAddress());
-                // 向client发送关闭连接响应，client会发生会话失效事件
+                // 向client发送关闭连接响应，这时候client会发生【会话失效】事件
                 cnxn.sendBuffer(ServerCnxnFactory.closeConn);
             }
 
@@ -1456,7 +1457,8 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
                 Long.toHexString(connReq.getLastZxidSeen()),
                 connReq.getTimeOut(),
                 cnxn.getRemoteSocketAddress());
-        } else {  // 若sessionId不为0，则说明本次连接属于client会话丢失后的重连
+        } else {
+            // 若sessionId不为0，则说明本次连接属于client会话丢失后的重连
             validateSession(cnxn, sessionId);
             LOG.debug(
                 "Client attempting to renew session: session = 0x{}, zxid = 0x{}, timeout = {}, address = {}",

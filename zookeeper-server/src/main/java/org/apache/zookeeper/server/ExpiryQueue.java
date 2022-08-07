@@ -47,9 +47,9 @@ public class ExpiryQueue<E> {
     private final int expirationInterval;
 
     public ExpiryQueue(int expirationInterval) {
-        // 会话桶大小
+        // 每个会话桶大小
         this.expirationInterval = expirationInterval;
-        // roundToNextInterval(Time.currentElapsedTime()) 计算当前时间所在的会话桶，
+        // roundToNextInterval(Time.currentElapsedTime()) 【计算当前时间所在的会话桶】，
         // 每个会话桶都有一个标识id，即其所包含的时间范围的最大边界时间点
         // nextExpirationTime 用于记录下次要进行过期会话清理的时间点
         nextExpirationTime.set(roundToNextInterval(Time.currentElapsedTime()));
@@ -58,6 +58,7 @@ public class ExpiryQueue<E> {
     // 计算指定时间所在的会话桶
     private long roundToNextInterval(long time) {
         // 利用整型除整型结果仍为整型来计算会话桶的
+        // 就是向上取整 * 每个桶的大小
         return (time / expirationInterval + 1) * expirationInterval;
     }
 
@@ -88,9 +89,10 @@ public class ExpiryQueue<E> {
      * @return time at which the element is now set to expire if
      *                 changed, or null if unchanged
      */
-    // 当client与server有交互时（连接请求/读写操作/心跳），该方法就会被调用
-    // 当zk server启动时会将磁盘中的session恢复到内存，也会调用该方法
-    // 该方法在做的是会话换桶操作
+    // 1. 当client与server有交互时（连接请求/读写操作/心跳），该方法就会被调用
+    // 2. 当zk server启动时会将磁盘中的session恢复到内存，也会调用该方法
+    // 【重要! 重要! 重要! 该方法在做的是会话换桶操作】
+    // 这里只处理换桶操作，没有处理过期桶的删除(比如之前的桶里面没有会话了，这里也不会删除，而是在其他地方删除)
     public Long update(E elem, int timeout) {
         // elemMap集合的key为session，value为该session的过期时间，
         // 即该session当前所在的会话桶id
@@ -107,7 +109,7 @@ public class ExpiryQueue<E> {
         }
 
         // ---------- 代码能走到这里，说明需要换桶了。 --------------
-        // 换桶由两步操作完成：将会话放入到新桶；将会话从老桶中清除
+        // do 换桶由两步操作完成：将会话放入到新桶；将会话从老桶中清除
 
 
         // First add the elem to the new expiry time bucket in expiryMap.
@@ -133,6 +135,7 @@ public class ExpiryQueue<E> {
         // Map the elem to the new expiry time. If a different previous
         // mapping was present, clean up the previous expiry bucket.
         // 将会话与会话桶id的对应关系放入到elemMap，并获取到该会话之前所在的会话桶id
+        // 【若换桶了，则把之前的会话删了】
         prevExpiryTime = elemMap.put(elem, newExpiryTime);
         // 若当前会话桶id与之前会话桶id不相同，说明需要换桶。
         // 而前面已经将会话放到了新的会话桶，所以这里要将会话从老桶中清除

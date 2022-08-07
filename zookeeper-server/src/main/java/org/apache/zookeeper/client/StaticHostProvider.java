@@ -315,6 +315,11 @@ public final class StaticHostProvider implements HostProvider {
      *
      * When called, this should be protected by synchronized(this)
      */
+    /**
+     * 这里要考虑扩容后，连老机器还是新机器的问题；
+     * 比如之前有三台机器，连到第二台时，如果扩容，还是连接老机器的第三台
+     * 比如之前有三台机器，连到第三台时，如果扩容，就是连接新机器的第一台
+     */
     private InetSocketAddress nextHostInReconfigMode() {
         boolean takeNew = (sourceOfRandomness.nextFloat() <= pNew);
 
@@ -323,6 +328,7 @@ public final class StaticHostProvider implements HostProvider {
         // and either the probability tells us to connect to one of the new
         // servers or if we already
         // tried all the old servers
+
         // oldServers是存放原来server的集合，
         // newServers是存放扩容server的集合。
         // 尝试过程与原理：
@@ -349,14 +355,16 @@ public final class StaticHostProvider implements HostProvider {
         InetSocketAddress addr;
 
         synchronized (this) {
+            // reconfigMode 就是第一次配置true时，会生效，然后集群下一台机器执行reconfig命令，其他机器都生效，
+            // 然后配置就变为false了，即该配置就不再生效
             if (reconfigMode) {
-                // 获取一个server地址
+                // 获取一个server地址（hostname:ip）
                 addr = nextHostInReconfigMode();
                 if (addr != null) {
                     currentIndex = serverAddresses.indexOf(addr);
                     // 对获取到的地址进行再次处理：
                     // 获取到hostname对应的所有ip，进行第二次shuffle，
-                    // 并返回shuflle过后，第一个ip构成的地址
+                    // 并返回shuffle过后，第一个ip构成的地址
                     return resolve(addr);
                 }
                 //tried all servers and couldn't connect
@@ -364,7 +372,8 @@ public final class StaticHostProvider implements HostProvider {
                 needToSleep = (spinDelay > 0);
             }
 
-            // reconfigMode为false的情况，即没有扩容，或扩容已经完成，新的配置已经成功加载，
+            // 下面的处理逻辑是，reconfigMode为false的情况，即没有扩容，或扩容已经完成，新的配置已经成功加载，
+            // 从这句话可以看出，只有输入reconfig命令，准备扩容时，才会reconfigMode = true，扩容结束，就会设置为false
             // 即变为了一个普通的zk集合了
             // 轮询
             ++currentIndex;
