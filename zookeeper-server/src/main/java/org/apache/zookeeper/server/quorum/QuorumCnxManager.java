@@ -84,6 +84,7 @@ import org.slf4j.LoggerFactory;
  * 翻译：这个类使用TCP实现了一个用于Leader选举的连接管理器。
  * 它为每一对服务器维护着一个连接。棘手的部分在于确保[为每对服务器正确地操作
  * 并且可以与整个网络进行通信的]连接恰有一个。
+ * 【比如A想和B建立连接，而B想和A建立连接，那只建立一个连接】
  *
  * If two servers try to start a connection concurrently, then the connection
  * manager uses a very simple tie-breaking mechanism to decide which connection
@@ -98,18 +99,20 @@ import org.slf4j.LoggerFactory;
  * message to the tail of the queue, thus changing the order of messages.
  * Although this is not a problem for the leader election, it could be a problem
  * when consolidating peer communication. This is to be verified, though.
- * 翻译：对于每个对等体，管理器维护着一个消息发送队列。如果连接到任何
+ * 翻译：对于每个对等体，管理器维护着一个【消息发送队列】。如果连接到任何
  * 特定的Server中断，那么发送者线程将消息放回到这个列表中。
  * 作为这个实现，当前使用一个队列来实现维护发送给另一方的消息，因此我们将消息
  * 添加到队列的尾部，从而更改了消息的顺序。虽然对于Leader选举来说这不是一个问题，
  * 但对于加强对等通信可能就是个问题。不过，这一点有待验证。
  */
-    // 每个server都拥有一个QuorumCnxManager，而QuorumCnxManager对象拥有一个消息发送map，
-    // 该map的key为其它server的id，value为一个队列。这个队列中存放的是当前server向这个server
-    // 发送失败的消息。这样的话，对于这个map会有这样的三种情况：
-    // 1)所有队列均为空：说明当前server发送的消息全部成功。
-    // 2)所有队列均不空：说明当前server发送给所有其它server的消息全部失败，即当前server与集合失联。
-    // 3)若有一个队列为空：说明当前server给这个server发送的消息全部成功，即当前server与集群没有失联。
+// 每个server都拥有一个QuorumCnxManager，而QuorumCnxManager对象拥有一个消息发送map，
+// 该map的key为其它server的id，value为一个队列。这个队列中存放的是当前server向这个server
+// 发送失败的消息。
+// 比如serverId为1的server中有个Map<其他Server的id,List<发给这个server的失败的消息>>
+// 这样的话，对于这个map会有这样的三种情况：
+// 1) 所有队列均为空：说明当前server发送的消息全部成功。
+// 2) 所有队列均不空：说明当前server发送给所有其它server的消息全部失败，即当前server与集合失联。
+// 3) 若有一个队列为空：说明当前server给这个server发送的消息全部成功，即当前server与集群没有失联。
 public class QuorumCnxManager {
 
     private static final Logger LOG = LoggerFactory.getLogger(QuorumCnxManager.class);

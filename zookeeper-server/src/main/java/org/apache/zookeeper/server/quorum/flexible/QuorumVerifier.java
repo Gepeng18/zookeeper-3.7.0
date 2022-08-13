@@ -33,12 +33,16 @@ import java.util.Set;
  */
 
 // QuorumVerifier其实对应的是一个版本的zoo.cfg.dynamic的动态配置
+// 如果有三个dynamic快照，则表示有三个QuorumVerifier
 public interface QuorumVerifier {
 
     // 获取指定server的weight权重
-    // 性能越好的server一般要设置越大的权重
+    // 性能越好的server一般要设置越大的权重，权重越高当leader的可能性越大
     long getWeight(long id);
+
     // 用于判断给定的set集合中包含的serverId是否已经达到了过半（大多数）
+    // 比如一共9个，其中set数量为5，则表示过半，返回true
+    // 刚刚说了，一个QuorumVerifier代表一个dynamic动态配置，所以相同的set对于不同的验证器结果是不一样的
     boolean containsQuorum(Set<Long> set);
 
     // 其对应的就是zoo.cfg.dynamic的版本

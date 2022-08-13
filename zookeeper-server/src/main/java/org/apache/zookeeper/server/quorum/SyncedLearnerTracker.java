@@ -25,6 +25,7 @@ import java.util.HashSet;
 
 public class SyncedLearnerTracker {
 
+    // 是一个List是因为存在很多版本，每个版本一个 QuorumVerifierAcksetPair
     protected ArrayList<QuorumVerifierAcksetPair> qvAcksetPairs = new ArrayList<QuorumVerifierAcksetPair>();
 
     public void addQuorumVerifier(QuorumVerifier qv) {
@@ -61,15 +62,15 @@ public class SyncedLearnerTracker {
 
     // 验证当前Leader选举是否可以结束了
     public boolean hasAllQuorums() {
-        // 遍历所有的QuorumVerifier，只有当所有QuorumVerifier
-        // 中的ackset都判断过半了，才能结束本轮leader选举。
+        // 遍历所有的QuorumVerifier，只有当所有QuorumVerifier中的ackset都判断过半了，才能结束本轮leader选举。
         for (QuorumVerifierAcksetPair qvAckset : qvAcksetPairs) {
             if (!qvAckset.getQuorumVerifier().containsQuorum(qvAckset.getAckset())) {
-                // 只要有一个QuorumVerifier中的ackset没有过半，就不能结束选举
+                // do 当前和最新的QuorumVerifier，只要有一个中的ackset没有过半，就不能结束选举
+                // 因为是边界情况，所以必须要求两个都通过，才能算选举成功
                 return false;
             }
         }
-        // 选举可以结束了
+        // 两个containsQuorum()都返回true，才表示选举可以结束了
         return true;
     }
 
@@ -86,7 +87,7 @@ public class SyncedLearnerTracker {
     // 可以将其简单理解为一个key-value对
     public static class QuorumVerifierAcksetPair {
 
-        // 基于ackset验证支持率是否过半
+        // 基于ackset验证支持率是否过半的【验证器】
         private final QuorumVerifier qv;
         // 存放的是当前server接收到的外来通知的来源serverId
         private final HashSet<Long> ackset;

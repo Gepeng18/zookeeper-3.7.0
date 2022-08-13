@@ -71,7 +71,8 @@ import static org.apache.zookeeper.common.NetUtils.formatInetAddr;
  * <li>Leader - the server will process requests and forward them to followers.
  * A majority of followers must log the request before it can be accepted.
  * </ol>
- * 翻译：这个类管理着“法定人数投票”协议。这个服务器有三个状态：
+ * 翻译：这个类管理着“法定人数投票”协议（注意这里是法定人数选票，即具有投票权的，observer不在里面）。
+ * 这个服务器有三个【状态】：
  * （1）Leader election：(处于该状态的)每一个服务器将选举一个Leader(最初推荐
  * 自己作为Leader)。(这个状态即LOOKING状态)
  * （2）Follower：(处于该状态的)服务器将与Leader做同步，并复制所有的事务(注意
@@ -1621,7 +1622,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
     public synchronized Set<Long> getCurrentAndNextConfigVoters() {
         // 使用当前版本的QuorumVerifier中所有的participant，创建一个set集合
         Set<Long> voterIds = new HashSet<Long>(getQuorumVerifier().getVotingMembers().keySet());
-        // 若当前有最新版本的QuorumVerifier，则将其participant更新到voterIds中
+        // 若正好来了一个最新版本的动态配置，则当前有最新版本的QuorumVerifier，则将其participant更新到voterIds中
         if (getLastSeenQuorumVerifier() != null) {
             voterIds.addAll(getLastSeenQuorumVerifier().getVotingMembers().keySet());
         }

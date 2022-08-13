@@ -41,7 +41,9 @@ import java.util.Set;
  * of the total weight of a group for a majority of groups.
  * 这个类实现了一个层次量化的验证器。通过这种结构，zookeeper服务器被分成不相交的组，并且
  * 每个服务器都有一个权重。对于大多数group，如果我们获得的权重超过这个group总权重的一半，
- * 我们就获得大多数（过半）。
+ * 我们就获得大多数（过半），leader选举就可以结束了。
+ * 假设我们现在有4个组，然后获得了好多的选票，这些选票来自三个组，然后每个组中获得选票的权重超过该组总权重的一半，所以这些组相当于同意你成为leader，
+ * 同时，同意的组超过一半，你才能成为leader（所以每个组内权重要过半，同时组也要过半）
  *
  * The configuration of quorums uses two parameters: group and weight.
  * Groups are sets of ZooKeeper servers, and we set a group by passing
@@ -52,11 +54,11 @@ import java.util.Set;
  * 我们设置一个组，通过传递一个以冒号分隔的server id列表。它还需要为server分配权重。
  * 以下是一个配置示例，该配置创建三个group并为每个server分配权重为1：
  *
- *  group.1=1:2:3
+ *  group.1=1:2:3   第一组包含 1 2 3 三台机器
  *  group.2=4:5:6
  *  group.3=7:8:9
  *
- *  weight.1=1
+ *  weight.1=1      1号机器的权重为1
  *  weight.2=1
  *  weight.3=1
  *  weight.4=1
@@ -66,11 +68,12 @@ import java.util.Set;
  *  weight.8=1
  *  weight.9=1
  *
- *  注意，默认情况下，每个server就是一个group，groupId就是severId；
+ *  【注意，默认情况下，每个server就是一个group，groupId就是severId；】
  *  每个participant的weight默认为1，每个observer的weight默认为0
  *
  * Note that it is still necessary to define peers using the server keyword.
  * 请注意，仍然需要使用server关键字定义对等点。
+ * 比如定义集群时，要写
  * server.1=...
  * server.2=...
  * server.3=...
@@ -88,7 +91,7 @@ public class QuorumHierarchical implements QuorumVerifier {
     private HashMap<Long, Long> groupWeight = new HashMap<Long, Long>();
 
     // 集群中包含的组的数量。
-    // 若每个server为一个group，那么该变量就变为了server的数量
+    // 若每个server为一个group，那么该变量就变为了server的数量（server指的是participant，即包含选举权和被选举权的，不包含observer）
     private int numGroups = 0;
 
 
@@ -347,11 +350,11 @@ public class QuorumHierarchical implements QuorumVerifier {
 
     /**
      * Verifies if a given set is a quorum.
+     * 入参 set ： 表示从票箱中挑选出的所有与我的推荐信息相同的选票
      * 验证给定的set是否是大多数
      */
     public boolean containsQuorum(Set<Long> set) {
-        // 临时集合变量
-        // key为groupId，value为当前set中该groupId的所有server的weight之和
+        // 临时集合变量，其中key为groupId，value为当前set中该groupId的所有server的weight之和
         HashMap<Long, Long> expansion = new HashMap<Long, Long>();
 
         /*
@@ -382,6 +385,7 @@ public class QuorumHierarchical implements QuorumVerifier {
 
         /*
          * Check if all groups have majority
+         * 检测是否是大多数
          */
         int majGroupCounter = 0;
         for (Entry<Long, Long> entry : expansion.entrySet()) {
@@ -390,8 +394,7 @@ public class QuorumHierarchical implements QuorumVerifier {
             LOG.debug("Group info: {}, {}, {}", entry.getValue(), gid, groupWeight.get(gid));
 
             // entry.getValue() 是当前遍历group的totalWeight
-            // 判断当前遍历group的totalWeight是否大于当前组总权重之和的一半，
-            // 若大于，计数器加一
+            // 判断当前遍历group的totalWeight是否大于当前组总权重之和的一半，若大于，计数器加一
             if (entry.getValue() > (groupWeight.get(gid) / 2)) {
                 majGroupCounter++;
             }
@@ -400,7 +403,7 @@ public class QuorumHierarchical implements QuorumVerifier {
         LOG.debug("Majority group counter: {}, {}", majGroupCounter, numGroups);
 
         // 若大多数group都满足前面的条件，则返回true，
-        // 表示当前版本的QuorumVerifier对ackset的判断是过半的
+        // 表示当前版本的QuorumVerifier对ackset的判断是过半的【记得不，我们可能需要判断两个QuorumVerifier，所以这里不代表leader选举结束了】
         if ((majGroupCounter > (numGroups / 2))) {
             LOG.debug("Positive set size: {}", set.size());
             return true;
